@@ -4,6 +4,7 @@ import Login from './Login';
 import { jsPDF } from 'jspdf';
 import { letterLogo, coltSignature } from './assets';
 
+// --- HELPER FUNCTIONS ---
 function formatTo12Hour(milTime) {
     if (!milTime || milTime.length !== 4) return milTime;
     let hours = parseInt(milTime.substring(0, 2), 10);
@@ -20,9 +21,10 @@ function draftWorkerEmail(worker) {
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${worker.email}&su=${subject}&body=${body}`);
 }
 
-export default function App() {
+// --- MAIN COMPONENT ---
+export default function ManagerDashboard() {
+    // State
     const [session, setSession] = useState(null);
-
     const [workers, setWorkers] = useState([]);
     const [selectedWorkerId, setSelectedWorkerId] = useState(null);
     const [activeManagerId, setActiveManagerId] = useState(null);
@@ -30,10 +32,10 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [editingLog, setEditingLog] = useState(null);
-
     const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
+
     const [workerFormData, setWorkerFormData] = useState({
-        first_name: '', last_name: '', case_number: '', target_hours: ''
+        first_name: '', last_name: '', email: '', case_number: '', target_hours: ''
     });
 
     const [logFormData, setLogFormData] = useState({
@@ -44,6 +46,7 @@ export default function App() {
         hours_count: ''
     });
 
+    // --- EFFECTS ---
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
@@ -87,33 +90,33 @@ export default function App() {
                     if (workerData.length > 0) setSelectedWorkerId(workerData[0].id);
                 }
             }
-
             setLoading(false);
         }
 
         fetchInitialData();
     }, [session]);
 
-    useEffect(() => {
+    // Hoisted fetchLogs so other functions can call it
+    async function fetchLogs() {
         if (!selectedWorkerId) return;
+        setLoadingLogs(true);
+        const { data, error } = await supabase
+            .from('hours_logs')
+            .select('*')
+            .eq('worker_id', selectedWorkerId)
+            .order('work_date', { ascending: false });
 
-        async function fetchLogs() {
-            setLoadingLogs(true);
-            const { data, error } = await supabase
-                .from('hours_logs')
-                .select('*')
-                .eq('worker_id', selectedWorkerId)
-                .order('work_date', { ascending: false });
-
-            if (!error && data) {
-                setLogs(data);
-            }
-            setLoadingLogs(false);
+        if (!error && data) {
+            setLogs(data);
         }
+        setLoadingLogs(false);
+    }
 
+    useEffect(() => {
         fetchLogs();
     }, [selectedWorkerId]);
 
+    // --- HANDLERS ---
     async function createLetter(targetWorker) {
         const { data: verifiedLogs, error } = await supabase
             .from('hours_logs').select('*')
@@ -124,557 +127,450 @@ export default function App() {
 
         const totalHours = verifiedLogs.reduce((acc, log) => acc + Number(log.hours_count), 0);
 
-        // Updated Date Format to MM/DD/YY (2-digit year)
         const formatDate = (dateString) => {
             const d = new Date(dateString);
-            const yy = d.getFullYear().toString().slice(-2); // Grabs just the "26" from "2026"
+            const yy = d.getFullYear().toString().slice(-2);
             return `${d.getMonth() + 1}/${d.getDate()}/${yy}`;
         };
-    };
 
-    const todayDate = formatDate(new Date());
-    const startDate = formatDate(verifiedLogs[0].work_date);
-    const endDate = formatDate(verifiedLogs[verifiedLogs.length - 1].work_date);
+        const todayDate = formatDate(new Date());
+        const startDate = formatDate(verifiedLogs[0].work_date);
+        const endDate = formatDate(verifiedLogs[verifiedLogs.length - 1].work_date);
 
-    const doc = new jsPDF();
-    const margin = 20;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const textWidth = pageWidth - (margin * 2);
-    let cursorY = 20;
+        const doc = new jsPDF();
+        const margin = 20;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const textWidth = pageWidth - (margin * 2);
+        let cursorY = 20;
 
-    // --- 1. ADD THE LETTERHEAD LOGO (LARGER & CENTERED) ---
-    const logoWidth = 90; // Increased from 50
-    const logoHeight = 30; // Increased from 20 to maintain roughly the same shape
-    const logoX = (pageWidth - logoWidth) / 2; // Math to find the exact center of the page
+        const logoWidth = 90;
+        const logoHeight = 30;
+        const logoX = (pageWidth - logoWidth) / 2;
 
-    doc.addImage(letterLogo, 'PNG', logoX, cursorY, logoWidth, logoHeight);
-    cursorY += 45; // Push text down further to account for the larger logo
+        doc.addImage(letterLogo, 'PNG', logoX, cursorY, logoWidth, logoHeight);
+        cursorY += 45;
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(12);
 
-    // Date
-    doc.text(todayDate, margin, cursorY);
-    cursorY += 12; // Tightened the gap slightly
+        doc.text(todayDate, margin, cursorY);
+        cursorY += 12;
 
-    // Salutation
-    doc.text("To Whom It May Concern:", margin, cursorY);
-    cursorY += 15;
+        doc.text("To Whom It May Concern:", margin, cursorY);
+        cursorY += 15;
 
-    // Paragraph 1
-    const p1 = `Between ${startDate} and ${endDate} ${targetWorker.first_name} ${targetWorker.last_name} completed ${totalHours} hours of community service, by Fit to Recover-Utah County at 184 W. 400 N. Provo, UT 84601.`;
-    doc.text(p1, margin, cursorY, { maxWidth: textWidth });
-    cursorY += 20;
+        const p1 = `Between ${startDate} and ${endDate} ${targetWorker.first_name} ${targetWorker.last_name} completed ${totalHours} hours of community service, by Fit to Recover-Utah County at 184 W. 400 N. Provo, UT 84601.`;
+        doc.text(p1, margin, cursorY, { maxWidth: textWidth });
+        cursorY += 20;
 
-    // Paragraph 2
-    const p2 = `At Fit to Recover (FTR), our volunteers are important to our mission. Since our services are primarily developed and run by volunteers whose lives have been affected by substance use disorders in one way or another, volunteers are vital to our success and mission. FTR volunteers are primarily interested in giving back, enhancing their life skills, and connecting with recovery community members.`;
-    doc.text(p2, margin, cursorY, { maxWidth: textWidth });
-    cursorY += 35;
+        const p2 = `At Fit to Recover (FTR), our volunteers are important to our mission. Since our services are primarily developed and run by volunteers whose lives have been affected by substance use disorders in one way or another, volunteers are vital to our success and mission. FTR volunteers are primarily interested in giving back, enhancing their life skills, and connecting with recovery community members.`;
+        doc.text(p2, margin, cursorY, { maxWidth: textWidth });
+        cursorY += 35;
 
-    // Paragraph 3
-    const p3 = `If you have any questions, please feel free to reach out to me at the numbers listed below.`;
-    doc.text(p3, margin, cursorY, { maxWidth: textWidth });
-    cursorY += 15;
+        const p3 = `If you have any questions, please feel free to reach out to me at the numbers listed below.`;
+        doc.text(p3, margin, cursorY, { maxWidth: textWidth });
+        cursorY += 15;
 
-    // Sign-off 
-    doc.text("Sincerely,", margin, cursorY);
-    cursorY += 5; // VERY tight gap to the signature image
+        doc.text("Sincerely,", margin, cursorY);
+        cursorY += 5;
 
-    // --- 2. ADD THE DIGITAL SIGNATURE ---
-    doc.addImage(coltSignature, 'PNG', margin, cursorY, 40, 15);
-    cursorY += 18; // Push down just past the bottom of the signature image
+        doc.addImage(coltSignature, 'PNG', margin, cursorY, 40, 15);
+        cursorY += 18;
 
-    // --- 3. PRINTED NAME AND TITLE (WITH LINE BREAK) ---
-    doc.text("Colt Farr", margin, cursorY);
-    cursorY += 8; // This creates the line break you requested!
+        doc.text("Colt Farr", margin, cursorY);
+        cursorY += 8;
 
-    const signOffDetails = `Utah County Fit to Recover General Manager\n184 W. 400 N. Provo, UT 84601\nPersonal: (801) 381-8833\nOffice: (801) 875-0603`;
-    doc.text(signOffDetails, margin, cursorY);
+        const signOffDetails = `Utah County Fit to Recover General Manager\n184 W. 400 N. Provo, UT 84601\nPersonal: (801) 381-8833\nOffice: (801) 875-0603`;
+        doc.text(signOffDetails, margin, cursorY);
 
-    // Save File & Update Database
-    const fileName = `${targetWorker.first_name}_${targetWorker.last_name}_Completion_Letter.pdf`;
-    doc.save(fileName);
+        const fileName = `${targetWorker.first_name}_${targetWorker.last_name}_Completion_Letter.pdf`;
+        doc.save(fileName);
 
-    const logIds = verifiedLogs.map(log => log.id);
-    await supabase.from('hours_logs').update({ is_reported: true }).in('id', logIds);
+        const logIds = verifiedLogs.map(log => log.id);
+        await supabase.from('hours_logs').update({ is_reported: true }).in('id', logIds);
 
-    // Note: ensure you still have your fetchLogs or state-update logic here if you were using it!
-    alert(`Letter created! ${totalHours} hours have been successfully reported.`);
-}
-
-async function handleAddWorker(e) {
-    e.preventDefault();
-    const { data, error } = await supabase
-        .from('workers')
-        .insert([{
-            manager_id: activeManagerId,
-            first_name: workerFormData.first_name,
-            last_name: workerFormData.last_name,
-            case_number: workerFormData.case_number,
-            target_hours: parseFloat(workerFormData.target_hours)
-        }])
-        .select();
-
-    if (!error && data) {
-        const newWorker = data[0];
-        setWorkers([...workers, newWorker]);
-        setSelectedWorkerId(newWorker.id);
-        setIsWorkerModalOpen(false);
-        setWorkerFormData({ first_name: '', last_name: '', case_number: '', target_hours: '' });
-    }
-}
-
-async function handleAddLog(e) {
-    e.preventDefault();
-    if (!selectedWorkerId) return;
-
-    const dbMilitaryTime = logFormData.time_input.replace(':', '');
-
-    const { data, error } = await supabase
-        .from('hours_logs')
-        .insert([{
-            worker_id: selectedWorkerId,
-            work_date: logFormData.work_date,
-            location: logFormData.location,
-            description: logFormData.description,
-            military_time: dbMilitaryTime,
-            hours_count: parseFloat(logFormData.hours_count),
-            is_verified: false,
-            is_reported: false
-        }])
-        .select();
-
-    if (!error && data) {
-        setLogs([data[0], ...logs]);
-        setLogFormData({
-            ...logFormData,
-            time_input: '',
-            hours_count: '',
-            location: '',
-            description: ''
-
-        });
-    } else {
-        alert("Failed to save. Check that all fields are correct.");
-        console.error(error);
-    }
-}
-
-async function toggleStatus(log) {
-    let newVerified = log.is_verified;
-    let newReported = log.is_reported;
-
-    if (log.is_reported) {
-        // Downgrade: Reported -> Verified
-        newReported = false;
-        newVerified = true;
-    } else if (log.is_verified) {
-        // Downgrade: Verified -> Pending
-        newVerified = false;
-    } else {
-        // Upgrade: Pending -> Verified
-        newVerified = true;
+        fetchLogs(); 
+        alert(`Letter created! ${totalHours} hours have been successfully reported.`);
     }
 
-    const { error } = await supabase
-        .from('hours_logs')
-        .update({ is_verified: newVerified, is_reported: newReported })
-        .eq('id', log.id);
+    async function handleAddWorker(e) {
+        e.preventDefault();
+        const { data, error } = await supabase
+            .from('workers')
+            .insert([{
+                manager_id: activeManagerId,
+                first_name: workerFormData.first_name,
+                last_name: workerFormData.last_name,
+                email: workerFormData.email,
+                case_number: workerFormData.case_number,
+                target_hours: parseFloat(workerFormData.target_hours)
+            }])
+            .select();
 
-    if (!error) {
-        setLogs(logs.map(l => l.id === log.id ? { ...l, is_verified: newVerified, is_reported: newReported } : l));
-    }
-}
-async function handleAddWorker(e) {
-    e.preventDefault();
-    const { data, error } = await supabase.from('workers').insert([workerFormData]).select();
-
-    if (!error) {
-        setIsWorkerModalOpen(false);
-        // Automatically open the email draft for the manager to review/send
-        draftWorkerEmail(workerFormData);
-    }
-}
-
-const activeWorker = workers.find(w => w.id === selectedWorkerId);
-
-const totalLogged = logs.reduce((sum, log) => sum + Number(log.hours_count), 0);
-const totalVerified = logs.reduce((sum, log) => sum + (log.is_verified ? Number(log.hours_count) : 0), 0);
-const progressPercent = activeWorker ? Math.min((totalVerified / activeWorker.target_hours) * 100, 100) : 0;
-
-// --- EXTRACT UNIQUE SUGGESTIONS FROM HISTORY ---
-// Get unique locations from all logs
-const uniqueLocations = Array.from(new Set(logs.map(log => log.location).filter(Boolean)));
-
-// Get unique descriptions, filtered by the currently typed location (if any)
-const relevantLogs = logFormData.location
-    ? logs.filter(log => log.location.toLowerCase() === logFormData.location.toLowerCase())
-    : logs;
-const uniqueDescriptions = Array.from(new Set(relevantLogs.map(log => log.description).filter(Boolean)));
-
-if (!session) {
-    return <Login />;
-}
-
-if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-bold">Connecting to cloud database...</div>;
-async function generateWorkerReport(worker) {
-    // 1. Fetch only verified, unreported logs for this specific worker
-    const { data: verifiedLogs, error } = await supabase
-        .from('hours_logs')
-        .select('*')
-        .eq('worker_id', worker.id)
-        .eq('is_verified', true)
-        .eq('is_reported', false)
-        .order('work_date', { ascending: true });
-
-    if (error || !verifiedLogs || verifiedLogs.length === 0) {
-        alert("No verified, unreported hours found for this worker.");
-        return;
+        if (!error && data) {
+            const newWorker = data[0];
+            setWorkers([...workers, newWorker]);
+            setSelectedWorkerId(newWorker.id);
+            setIsWorkerModalOpen(false);
+            draftWorkerEmail(newWorker);
+            setWorkerFormData({ first_name: '', last_name: '', email: '', case_number: '', target_hours: '' });
+        }
     }
 
-    // 2. Calculate the template variables
-    const totalHours = verifiedLogs.reduce((acc, log) => acc + Number(log.hours_count), 0);
+    async function handleAddLog(e) {
+        e.preventDefault();
+        if (!selectedWorkerId) return;
 
-    // Format dates to standard US locale (e.g., "June 23, 2026")
-    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    const todayDate = new Date().toLocaleDateString('en-US', dateOptions);
-    const startDate = new Date(verifiedLogs[0].work_date).toLocaleDateString('en-US', dateOptions);
-    const endDate = new Date(verifiedLogs[verifiedLogs.length - 1].work_date).toLocaleDateString('en-US', dateOptions);
-    const workerName = `${worker.first_name} ${worker.last_name}`;
+        const dbMilitaryTime = logFormData.time_input.replace(':', '');
 
-    // 3. Initialize PDF Document
-    const doc = new jsPDF();
-    const margin = 20;
-    const textWidth = doc.internal.pageSize.getWidth() - (margin * 2);
-    let cursorY = 30; // Vertical tracking
+        const { data, error } = await supabase
+            .from('hours_logs')
+            .insert([{
+                worker_id: selectedWorkerId,
+                work_date: logFormData.work_date,
+                location: logFormData.location,
+                description: logFormData.description,
+                military_time: dbMilitaryTime,
+                hours_count: parseFloat(logFormData.hours_count),
+                is_verified: false,
+                is_reported: false
+            }])
+            .select();
 
-    // 4. Draw the Text
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-
-    // Date
-    doc.text(todayDate, margin, cursorY);
-    cursorY += 15;
-
-    // Salutation
-    doc.text("To Whom It May Concern:", margin, cursorY);
-    cursorY += 15;
-
-    // Paragraph 1
-    const p1 = `Between ${startDate} and ${endDate} ${workerName} completed ${totalHours} hours of community service, by Fit to Recover-Utah County at 184 W. 400 N. Provo, UT 84601.`;
-    doc.text(p1, margin, cursorY, { maxWidth: textWidth });
-    cursorY += 20; // Add space based on wrapped text
-
-    // Paragraph 2
-    const p2 = `At Fit to Recover (FTR), our volunteers are important to our mission. Since our services are primarily developed and run by volunteers whose lives have been affected by substance use disorders in one way or another, volunteers are vital to our success and mission. FTR volunteers are primarily interested in giving back, enhancing their life skills, and connecting with recovery community members.`;
-    doc.text(p2, margin, cursorY, { maxWidth: textWidth });
-    cursorY += 35;
-
-    // Paragraph 3
-    const p3 = `If you have any questions, please feel free to reach out to me at the numbers listed below.`;
-    doc.text(p3, margin, cursorY, { maxWidth: textWidth });
-    cursorY += 20;
-
-    // Sign-off
-    const signOff = `Sincerely,\n\nColt Farr\nUtah County Fit to Recover General Manager\n184 W. 400 N. Provo, UT 84601\nPersonal: (801) 381-8833\nOffice: (801) 875-0603`;
-    doc.text(signOff, margin, cursorY);
-
-    // 5. Save the PDF to the manager's computer
-    const fileName = `${worker.first_name}_${worker.last_name}_Completion_Letter.pdf`;
-    doc.save(fileName);
-
-    // 6. Database Update: Lock these records so they aren't reported twice
-    const logIds = verifiedLogs.map(log => log.id);
-    const { error: updateError } = await supabase
-        .from('hours_logs')
-        .update({ is_reported: true })
-        .in('id', logIds);
-
-    if (!updateError) {
-        // Trigger a re-fetch of your local state so the UI clears those logs
-        fetchLogs(worker.id);
-        alert(`Report generated! ${totalHours} hours have been successfully archived.`);
+        if (!error && data) {
+            setLogs([data[0], ...logs]);
+            setLogFormData({
+                ...logFormData,
+                time_input: '',
+                hours_count: '',
+                location: '',
+                description: ''
+            });
+        } else {
+            alert("Failed to save. Check that all fields are correct.");
+            console.error(error);
+        }
     }
-}
-return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 md:p-8">
-        <header className="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-800 pb-6 gap-4">
-            <div>
-                <h1 className="text-3xl font-black tracking-tight text-white">SERVICE TIME</h1>
-                <p className="text-gray-400 text-sm">Cloud-Synced Worker Portal</p>
-            </div>
 
-            <div className="flex items-center gap-4">
-                {workers.length > 0 && (
-                    <select
-                        value={selectedWorkerId || ''}
-                        onChange={(e) => setSelectedWorkerId(e.target.value)}
-                        className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white font-bold focus:outline-none focus:border-purple-500"
+    async function toggleStatus(log) {
+        let newVerified = log.is_verified;
+        let newReported = log.is_reported;
+
+        if (log.is_reported) {
+            newReported = false;
+            newVerified = true;
+        } else if (log.is_verified) {
+            newVerified = false;
+        } else {
+            newVerified = true;
+        }
+
+        const { error } = await supabase
+            .from('hours_logs')
+            .update({ is_verified: newVerified, is_reported: newReported })
+            .eq('id', log.id);
+
+        if (!error) {
+            setLogs(logs.map(l => l.id === log.id ? { ...l, is_verified: newVerified, is_reported: newReported } : l));
+        }
+    }
+
+    // --- CALCULATIONS ---
+    const activeWorker = workers.find(w => w.id === selectedWorkerId);
+    const totalLogged = logs.reduce((sum, log) => sum + Number(log.hours_count), 0);
+    const totalVerified = logs.reduce((sum, log) => sum + (log.is_verified ? Number(log.hours_count) : 0), 0);
+    const progressPercent = activeWorker ? Math.min((totalVerified / activeWorker.target_hours) * 100, 100) : 0;
+
+    const uniqueLocations = Array.from(new Set(logs.map(log => log.location).filter(Boolean)));
+    const relevantLogs = logFormData.location
+        ? logs.filter(log => log.location.toLowerCase() === logFormData.location.toLowerCase())
+        : logs;
+    const uniqueDescriptions = Array.from(new Set(relevantLogs.map(log => log.description).filter(Boolean)));
+
+    // --- RENDER EARLY RETURNS ---
+    if (!session) {
+        return <Login />;
+    }
+
+    if (loading) {
+        return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-bold">Connecting to cloud database...</div>;
+    }
+
+    // --- MAIN UI RENDER ---
+    return (
+        <div className="min-h-screen bg-gray-950 text-gray-100 font-sans p-4 md:p-8">
+            <header className="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-800 pb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tight text-white">SERVICE TIME</h1>
+                    <p className="text-gray-400 text-sm">Cloud-Synced Worker Portal</p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {workers.length > 0 && (
+                        <select
+                            value={selectedWorkerId || ''}
+                            onChange={(e) => setSelectedWorkerId(e.target.value)}
+                            className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white font-bold focus:outline-none focus:border-purple-500"
+                        >
+                            {workers.map(w => (
+                                <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>
+                            ))}
+                        </select>
+                    )}
+
+                    <button
+                        onClick={() => setIsWorkerModalOpen(true)}
+                        className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-purple-900/40 transition-all active:scale-95 text-sm"
                     >
-                        {workers.map(w => (
-                            <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>
-                        ))}
-                    </select>
-                )}
+                        + Add Worker
+                    </button>
+                    <button
+                        onClick={() => supabase.auth.signOut()}
+                        className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </header>
 
-                <button
-                    onClick={() => setIsWorkerModalOpen(true)}
-                    className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-purple-900/40 transition-all active:scale-95 text-sm"
-                >
-                    + Add Worker
-                </button>
-                <button
-                    onClick={() => supabase.auth.signOut()}
-                    className="text-xs text-gray-500 hover:text-red-400 transition-colors"
-                >
-                    Logout
-                </button>
-            </div>
-        </header>
+            <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {activeWorker ? (
+                    <>
+                        <div className="lg:col-span-1 space-y-6">
+                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
+                                <h2 className="text-2xl font-black text-white mb-1">{activeWorker.first_name} {activeWorker.last_name}</h2>
+                                <p className="text-gray-400 text-sm font-mono mb-4">Case: {activeWorker.case_number}</p>
 
-        <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {activeWorker ? (
-                <>
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
-                            <h2 className="text-2xl font-black text-white mb-1">{activeWorker.first_name} {activeWorker.last_name}</h2>
-                            <p className="text-gray-400 text-sm font-mono mb-4">Case: {activeWorker.case_number}</p>
+                                <div className="space-y-2 mt-4">
+                                    <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
+                                        <span className="text-gray-400">Verified Progress</span>
+                                        <span className="text-purple-400">{totalVerified.toFixed(1)} / {activeWorker.target_hours} hrs</span>
+                                    </div>
+                                    <div className="w-full bg-gray-950 rounded-full h-3 border border-gray-800 overflow-hidden">
+                                        <div className="bg-purple-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-gray-500 pt-1">
+                                        <span>Unverified Logged: {(totalLogged - totalVerified).toFixed(1)} hrs</span>
+                                        <span>{progressPercent.toFixed(0)}% Completed</span>
+                                    </div>
+                                    <button
+                                        onClick={() => createLetter(activeWorker)}
+                                        className="w-full mt-4 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded shadow transition-colors"
+                                    >
+                                        Create Letter
+                                    </button>
+                                </div>
+                            </div>
 
-                            <div className="space-y-2 mt-4">
-                                <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
-                                    <span className="text-gray-400">Verified Progress</span>
-                                    <span className="text-purple-400">{totalVerified.toFixed(1)} / {activeWorker.target_hours} hrs</span>
-                                </div>
-                                <div className="w-full bg-gray-950 rounded-full h-3 border border-gray-800 overflow-hidden">
-                                    <div className="bg-purple-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
-                                </div>
-                                <div className="flex justify-between text-xs text-gray-500 pt-1">
-                                    <span>Unverified Logged: {(totalLogged - totalVerified).toFixed(1)} hrs</span>
-                                    <span>{progressPercent.toFixed(0)}% Completed</span>
-                                </div>
-                                <button
-                                    onClick={() => createLetter(activeWorker)}
-                                    className="w-full mt-4 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded shadow transition-colors"
-                                >
-                                    Create Letter
-                                </button>
+                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
+                                <h3 className="text-lg font-bold text-white mb-4">Log Service Time</h3>
+                                <form onSubmit={handleAddLog} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date</label>
+                                        <input required type="date" value={logFormData.work_date} onChange={(e) => setLogFormData({ ...logFormData, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500 cursor-pointer [color-scheme:dark]" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Time Started</label>
+                                            <input required type="time" value={logFormData.time_input} onChange={(e) => setLogFormData({ ...logFormData, time_input: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm cursor-pointer focus:outline-none focus:border-purple-500 [color-scheme:dark]" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Hours Count</label>
+                                            <input required type="number" step="0.25" placeholder="2.5" value={logFormData.hours_count} onChange={(e) => setLogFormData({ ...logFormData, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Location</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            list="location-suggestions"
+                                            placeholder="County Food Bank"
+                                            value={logFormData.location}
+                                            onChange={(e) => setLogFormData({ ...logFormData, location: e.target.value })}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500"
+                                        />
+                                        <datalist id="location-suggestions">
+                                            {uniqueLocations.map(loc => <option key={loc} value={loc} />)}
+                                        </datalist>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Task Description</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            list="description-suggestions"
+                                            placeholder="Sorted goods..."
+                                            value={logFormData.description}
+                                            onChange={(e) => setLogFormData({ ...logFormData, description: e.target.value })}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500"
+                                        />
+                                        <datalist id="description-suggestions">
+                                            {uniqueDescriptions.map(desc => <option key={desc} value={desc} />)}
+                                        </datalist>
+                                    </div>
+
+                                    <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-colors mt-2">
+                                        Submit Log Entry
+                                    </button>
+                                </form>
                             </div>
                         </div>
 
-                        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
-                            <h3 className="text-lg font-bold text-white mb-4">Log Service Time</h3>
-                            <form onSubmit={handleAddLog} className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date</label>
-                                    {/* Added [color-scheme:dark] to fix the calendar contrast */}
-                                    <input required type="date" value={logFormData.work_date} onChange={(e) => setLogFormData({ ...logFormData, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500 cursor-pointer [color-scheme:dark]" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Time Started</label>
-                                        {/* Added [color-scheme:dark] to fix the clock contrast */}
-                                        <input required type="time" value={logFormData.time_input} onChange={(e) => setLogFormData({ ...logFormData, time_input: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm cursor-pointer focus:outline-none focus:border-purple-500 [color-scheme:dark]" />
+                        <div className="lg:col-span-2">
+                            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl min-h-[400px]">
+                                <h3 className="text-xl font-bold text-white mb-4">Activity Timeline Ledger</h3>
+
+                                {loadingLogs ? (
+                                    <div className="text-gray-400 text-sm py-8">Syncing entries...</div>
+                                ) : logs.length === 0 ? (
+                                    <div className="text-center py-16 text-gray-500 text-sm border border-dashed border-gray-800 rounded-xl">
+                                        No hours logged yet for this worker. Use the left panel to submit the first entry.
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Hours Count</label>
-                                        <input required type="number" step="0.25" placeholder="2.5" value={logFormData.hours_count} onChange={(e) => setLogFormData({ ...logFormData, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500" />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Location</label>
-                                    <input
-                                        required
-                                        type="text"
-                                        list="location-suggestions"
-                                        placeholder="County Food Bank"
-                                        value={logFormData.location}
-                                        onChange={(e) => setLogFormData({ ...logFormData, location: e.target.value })}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                                    />
-                                    {/* The native hidden dropdown list */}
-                                    <datalist id="location-suggestions">
-                                        {uniqueLocations.map(loc => <option key={loc} value={loc} />)}
-                                    </datalist>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Task Description</label>
-                                    <input
-                                        required
-                                        type="text"
-                                        list="description-suggestions"
-                                        placeholder="Sorted goods..."
-                                        value={logFormData.description}
-                                        onChange={(e) => setLogFormData({ ...logFormData, description: e.target.value })}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                                    />
-                                    {/* The native hidden dropdown list for descriptions */}
-                                    <datalist id="description-suggestions">
-                                        {uniqueDescriptions.map(desc => <option key={desc} value={desc} />)}
-                                    </datalist>
-                                </div>
-
-                                <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-colors mt-2">
-                                    Submit Log Entry
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div className="lg:col-span-2">
-                        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl min-h-[400px]">
-                            <h3 className="text-xl font-bold text-white mb-4">Activity Timeline Ledger</h3>
-
-                            {loadingLogs ? (
-                                <div className="text-gray-400 text-sm py-8">Syncing entries...</div>
-                            ) : logs.length === 0 ? (
-                                <div className="text-center py-16 text-gray-500 text-sm border border-dashed border-gray-800 rounded-xl">
-                                    No hours logged yet for this worker. Use the left panel to submit the first entry.
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-gray-800 text-xs text-gray-400 uppercase font-bold">
-                                                <th className="pb-3 pr-2">Date</th>
-                                                <th className="pb-3 px-2">Location / Task</th>
-                                                <th className="pb-3 px-2 text-center">Time</th>
-                                                <th className="pb-3 px-2 text-center">Hours</th>
-                                                <th className="pb-3 pl-2 text-right">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-800/40 text-sm">
-                                            {logs.map((log) => (
-                                                <tr key={log.id} className="hover:bg-gray-800/20 group">
-                                                    <td className="py-4 pr-2 font-mono whitespace-nowrap text-xs text-gray-300">{log.work_date}</td>
-                                                    <td className="py-4 px-2">
-                                                        <div className="font-semibold text-white">{log.location}</div>
-                                                        <div className="text-xs text-gray-400 line-clamp-1">{log.description}</div>
-                                                    </td>
-                                                    <td className="py-4 px-2 text-center font-bold text-gray-300 whitespace-nowrap">{formatTo12Hour(log.military_time)}</td>
-                                                    <td className="py-4 px-2 text-center font-bold text-white">{Number(log.hours_count).toFixed(1)}</td>
-                                                    <td className="py-4 pl-2 text-right whitespace-nowrap flex items-center justify-end gap-3">
-                                                        <button
-                                                            onClick={() => toggleStatus(log)}
-                                                            className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors shadow-sm ${log.is_reported ? 'text-blue-400 bg-blue-950/50 border-blue-900 hover:bg-blue-900/50' :
-                                                                log.is_verified ? 'text-green-400 bg-green-950/50 border-green-900 hover:bg-green-900/50' :
-                                                                    'text-yellow-500 bg-yellow-950/50 border-yellow-900 hover:bg-yellow-900/50'
-                                                                }`}
-                                                        >
-                                                            {log.is_reported ? 'Reported ↺' : log.is_verified ? 'Verified ✓' : 'Pending'}
-                                                        </button>
-
-                                                        {/* Edit/Delete Buttons */}
-                                                        {!log.is_verified && !log.is_reported && (
-                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">  <button
-                                                                onClick={() => setEditingLog(log)}
-                                                                className="text-blue-400 hover:text-blue-300 transition-colors"
-                                                            >
-                                                                ✎
-                                                            </button>
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        if (confirm("Delete this entry?")) {
-                                                                            const { error } = await supabase.from('hours_logs').delete().eq('id', log.id);
-                                                                            if (!error) setLogs(logs.filter(l => l.id !== log.id));
-                                                                        }
-                                                                    }}
-                                                                    className="text-red-400 hover:text-red-300 transition-colors"
-                                                                >
-                                                                    ✕
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </td>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-gray-800 text-xs text-gray-400 uppercase font-bold">
+                                                    <th className="pb-3 pr-2">Date</th>
+                                                    <th className="pb-3 px-2">Location / Task</th>
+                                                    <th className="pb-3 px-2 text-center">Time</th>
+                                                    <th className="pb-3 px-2 text-center">Hours</th>
+                                                    <th className="pb-3 pl-2 text-right">Status</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-800/40 text-sm">
+                                                {logs.map((log) => (
+                                                    <tr key={log.id} className="hover:bg-gray-800/20 group">
+                                                        <td className="py-4 pr-2 font-mono whitespace-nowrap text-xs text-gray-300">{log.work_date}</td>
+                                                        <td className="py-4 px-2">
+                                                            <div className="font-semibold text-white">{log.location}</div>
+                                                            <div className="text-xs text-gray-400 line-clamp-1">{log.description}</div>
+                                                        </td>
+                                                        <td className="py-4 px-2 text-center font-bold text-gray-300 whitespace-nowrap">{formatTo12Hour(log.military_time)}</td>
+                                                        <td className="py-4 px-2 text-center font-bold text-white">{Number(log.hours_count).toFixed(1)}</td>
+                                                        <td className="py-4 pl-2 text-right whitespace-nowrap flex items-center justify-end gap-3">
+                                                            <button
+                                                                onClick={() => toggleStatus(log)}
+                                                                className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors shadow-sm ${log.is_reported ? 'text-blue-400 bg-blue-950/50 border-blue-900 hover:bg-blue-900/50' :
+                                                                    log.is_verified ? 'text-green-400 bg-green-950/50 border-green-900 hover:bg-green-900/50' :
+                                                                        'text-yellow-500 bg-yellow-950/50 border-yellow-900 hover:bg-yellow-900/50'
+                                                                    }`}
+                                                            >
+                                                                {log.is_reported ? 'Reported ↺' : log.is_verified ? 'Verified ✓' : 'Pending'}
+                                                            </button>
 
-                                    </table>
-                                </div>
-                            )}
+                                                            {!log.is_verified && !log.is_reported && (
+                                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">  <button
+                                                                    onClick={() => setEditingLog(log)}
+                                                                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                                                                >
+                                                                    ✎
+                                                                </button>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (confirm("Delete this entry?")) {
+                                                                                const { error } = await supabase.from('hours_logs').delete().eq('id', log.id);
+                                                                                if (!error) setLogs(logs.filter(l => l.id !== log.id));
+                                                                            }
+                                                                        }}
+                                                                        className="text-red-400 hover:text-red-300 transition-colors"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                    </>
+                ) : (
+                    <div className="col-span-3 text-center py-20 border-2 border-dashed border-gray-800 rounded-2xl">
+                        <p className="text-gray-500 text-lg">No workers found. Click the button above to add one.</p>
                     </div>
-                </>
-            ) : (
-                <div className="col-span-3 text-center py-20 border-2 border-dashed border-gray-800 rounded-2xl">
-                    <p className="text-gray-500 text-lg">No workers found. Click the button above to add one.</p>
+                )}
+            </main>
+
+            {isWorkerModalOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-4">Add New Worker</h3>
+                        <form onSubmit={handleAddWorker} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">First Name</label>
+                                    <input required type="text" value={workerFormData.first_name} onChange={(e) => setWorkerFormData({ ...workerFormData, first_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Last Name</label>
+                                    <input required type="text" value={workerFormData.last_name} onChange={(e) => setWorkerFormData({ ...workerFormData, last_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
+                                <input required type="email" value={workerFormData.email} onChange={(e) => setWorkerFormData({ ...workerFormData, email: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Case Number</label>
+                                <input required type="text" value={workerFormData.case_number} onChange={(e) => setWorkerFormData({ ...workerFormData, case_number: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-purple-500" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Target Hours</label>
+                                <input required type="number" step="0.5" value={workerFormData.target_hours} onChange={(e) => setWorkerFormData({ ...workerFormData, target_hours: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+                            </div>
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors">Save Worker</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
-        </main>
+            
+            {editingLog && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-4">Edit Log Entry</h3>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const { error } = await supabase
+                                .from('hours_logs')
+                                .update({
+                                    work_date: editingLog.work_date,
+                                    location: editingLog.location,
+                                    description: editingLog.description,
+                                    military_time: editingLog.military_time,
+                                    hours_count: parseFloat(editingLog.hours_count)
+                                })
+                                .eq('id', editingLog.id);
 
-        {isWorkerModalOpen && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                    <h3 className="text-xl font-bold text-white mb-4">Add New Worker</h3>
-                    <form onSubmit={handleAddWorker} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">First Name</label>
-                                <input required type="text" value={workerFormData.first_name} onChange={(e) => setWorkerFormData({ ...workerFormData, first_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+                            if (!error) {
+                                setLogs(logs.map(l => l.id === editingLog.id ? editingLog : l));
+                                setEditingLog(null);
+                            }
+                        }} className="space-y-4">
+                            <input type="date" value={editingLog.work_date} onChange={(e) => setEditingLog({ ...editingLog, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
+                            <input type="text" value={editingLog.location} onChange={(e) => setEditingLog({ ...editingLog, location: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
+                            <input type="text" value={editingLog.description} onChange={(e) => setEditingLog({ ...editingLog, description: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
+                            <input type="number" step="0.25" value={editingLog.hours_count} onChange={(e) => setEditingLog({ ...editingLog, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
+
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setEditingLog(null)} className="text-gray-400">Cancel</button>
+                                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded">Save Changes</button>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Last Name</label>
-                                <input required type="text" value={workerFormData.last_name} onChange={(e) => setWorkerFormData({ ...workerFormData, last_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
-                            <input required type="email" value={workerFormData.email} onChange={(e) => setWorkerFormData({ ...workerFormData, email: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Case Number</label>
-                            <input required type="text" value={workerFormData.case_number} onChange={(e) => setWorkerFormData({ ...workerFormData, case_number: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-purple-500" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Target Hours</label>
-                            <input required type="number" step="0.5" value={workerFormData.target_hours} onChange={(e) => setWorkerFormData({ ...workerFormData, target_hours: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
-                        </div>
-                        <div className="flex justify-end gap-3 mt-8">
-                            <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
-                            <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors">Save Worker</button>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
                 </div>
-            </div>
-        )}
-        {/* Edit Log Modal */}
-        {editingLog && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                    <h3 className="text-xl font-bold text-white mb-4">Edit Log Entry</h3>
-                    <form onSubmit={async (e) => {
-                        e.preventDefault();
-                        const { error } = await supabase
-                            .from('hours_logs')
-                            .update({
-                                work_date: editingLog.work_date,
-                                location: editingLog.location,
-                                description: editingLog.description,
-                                military_time: editingLog.military_time,
-                                hours_count: parseFloat(editingLog.hours_count)
-                            })
-                            .eq('id', editingLog.id);
-
-                        if (!error) {
-                            setLogs(logs.map(l => l.id === editingLog.id ? editingLog : l));
-                            setEditingLog(null);
-                        }
-                    }} className="space-y-4">
-                        {/* Form Inputs */}
-                        <input type="date" value={editingLog.work_date} onChange={(e) => setEditingLog({ ...editingLog, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
-                        <input type="text" value={editingLog.location} onChange={(e) => setEditingLog({ ...editingLog, location: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
-                        <input type="text" value={editingLog.description} onChange={(e) => setEditingLog({ ...editingLog, description: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
-                        <input type="number" step="0.25" value={editingLog.hours_count} onChange={(e) => setEditingLog({ ...editingLog, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white" />
-
-                        <div className="flex justify-end gap-3 mt-8">
-                            <button type="button" onClick={() => setEditingLog(null)} className="text-gray-400">Cancel</button>
-                            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        )}
-    </div>
-);
+            )}
+        </div>
+    );
+}
