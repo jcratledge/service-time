@@ -3,57 +3,82 @@ import { supabase } from './supabaseClient';
 import Login from './Login';
 import ManagerDashboard from './ManagerDashboard';
 import WorkerDashboard from './WorkerDashboard';
+import SetPassword from './SetPassword';
 
+/**
+ * Main application entry point.
+ * Manages authentication state and role-based routing.
+ */
 export default function App() {
   const [session, setSession] = useState(null);
-  const [userRole, setUserRole] = useState(null); // 'manager' or 'worker' or null
-  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
+  const [needsPasswordSet, setNeedsPasswordSet] = useState(false);
 
   useEffect(() => {
+    // Check if this is a password recovery link click
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery') || hash.includes('type=invite')) {
+      setNeedsPasswordSet(true);
+    }
+
+    // 1. Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) checkUserRole(session.user.email);
-      else setLoading(false);
+      if (session) {
+        setSession(session);
+        fetchProfile(session.user.id);
+      }
     });
 
+    // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // If Supabase fires a PASSWORD_RECOVERY event, show the set password screen
+      if (_event === 'PASSWORD_RECOVERY') {
+        setNeedsPasswordSet(true);
+      }
       setSession(session);
-      if (session) checkUserRole(session.user.email);
-      else setLoading(false);
+      if (session) {
+        fetchProfile(session.user.id);
+      } else {
+        setUserProfile(null);
+      }
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  async function checkUserRole(email) {
-    // 1. Is this user a Manager?
-    const { data: managerData } = await supabase.from('managers').select('id').eq('email', email).single();
-    if (managerData) {
-      setUserRole('manager');
-    } else {
-      // 2. Are they a Worker?
-      const { data: workerData } = await supabase.from('workers').select('id').eq('email', email).single();
-      if (workerData) setUserRole('worker');
-      else setUserRole(null); // Unregistered user
+  async function fetchProfile(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+        
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (err) {
+      console.error("Profile fetch error:", err);
+      setUserProfile(null);
     }
-    setLoading(false);
   }
 
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Loading...</div>;
-  if (!session) return <Login />;
+  // If coming from an invite or reset link, show password setup first
+  if (needsPasswordSet && session) return <SetPassword />;
 
-return (
-    <>
-      {userRole === 'manager' && <ManagerDashboard />}
-      {userRole === 'worker' && <WorkerDashboard />}
-      {!userRole && (
-        <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white">
-          <h1 className="text-2xl font-bold">Role Check</h1>
-          <p>Logged in as: {session?.user?.email}</p>
-          <p>Detected Role: {userRole || 'None (Checking...)'}</p>
-          <button onClick={() => supabase.auth.signOut()} className="mt-4 text-blue-400">Logout</button>
-        </div>
-      )}
-    </>
-  );
+  // --- PRODUCTION ROUTING ---
+  if (!session) return <Login />;
+  
+  // If the profile is still loading, show a neutral state
+  if (!userProfile) return <div className="min-h-screen bg-gray-950"></div>;
+  
+  // Route based on role
+  if (userProfile.role === 'manager') {
+    return <ManagerDashboard />;
+  }
+  
+  if (userProfile.role === 'worker') {
+    return <WorkerDashboard workerData={userProfile} onLogout={() => supabase.auth.signOut()} />;
+  }
+
+  // Fallback for unexpected roles
+  return <div className="text-white p-10">Role not assigned. Please contact support.</div>;
 }

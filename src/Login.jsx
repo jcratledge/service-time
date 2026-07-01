@@ -12,29 +12,26 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-    
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    
+
     if (error) setMessage(error.message);
     setLoading(false);
   }
 
-  async function handleMagicLink(e) {
+  async function handleForgotPassword(e) {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
-    const { error } = await supabase.auth.signInWithOtp({ 
-      email,
-      options: {
-        emailRedirectTo: window.location.origin
-      }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
     });
 
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage('Success! Check your email for the secure login link.');
+      setMessage('Check your email for a password reset link. Check spam if you don\'t see it!');
     }
     setLoading(false);
   }
@@ -42,12 +39,12 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl">
-        
+
         {/* Rebranded Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-black text-white tracking-tight">Time Tracker Portal</h1>
           <p className="text-gray-400 text-sm mt-1">
-            {isFirstTime ? "Enter your email to receive a secure access link." : "Enter your credentials to access your dashboard."}
+            {isFirstTime ? "Enter your email to receive a link to reset your password." : "Enter your credentials to access your dashboard."}
           </p>
         </div>
 
@@ -58,50 +55,50 @@ export default function Login() {
         )}
 
         {/* Dynamic Form based on state */}
-        <form onSubmit={isFirstTime ? handleMagicLink : handleStandardLogin} className="space-y-4">
+        <form onSubmit={isFirstTime ? handleForgotPassword : handleStandardLogin}>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email</label>
-            <input 
-              type="email" 
-              required 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" 
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
           {!isFirstTime && (
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Password</label>
-              <input 
-                type="password" 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500" 
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
               />
             </div>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors mt-4"
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors mt-4"
           >
-            {loading ? 'Processing...' : (isFirstTime ? 'Send Setup Link' : 'Sign In')}
+            {loading ? 'Processing...' : (isFirstTime ? 'Send Password Reset Link' : 'Sign In')}
           </button>
         </form>
 
         {/* The Toggle Switch */}
         <div className="mt-6 text-center">
-          <button 
+          <button
             onClick={() => {
               setIsFirstTime(!isFirstTime);
               setMessage('');
-            }} 
+            }}
             className="text-sm text-gray-500 hover:text-white transition-colors"
           >
-            {isFirstTime ? "← Back to standard sign in" : "First time here? Set up your account"}
+            {isFirstTime ? "← Back to standard sign in" : "Forgot your password?"}
           </button>
         </div>
 
