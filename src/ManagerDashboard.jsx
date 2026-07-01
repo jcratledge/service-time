@@ -4,26 +4,7 @@ import Login from './Login';
 import { jsPDF } from 'jspdf';
 import { letterLogo, coltSignature } from './assets';
 
-const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
-const [managerFormData, setManagerFormData] = useState({ first_name: '', last_name: '', email: '' });
-const [managerInviteMessage, setManagerInviteMessage] = useState('');
 
-async function handleInviteManager(e) {
-    e.preventDefault();
-    const { data, error } = await supabase.functions.invoke('invite-manager', {
-        body: {
-            first_name: managerFormData.first_name,
-            last_name: managerFormData.last_name,
-            email: managerFormData.email
-        }
-    });
-    if (error || data?.error) {
-        setManagerInviteMessage("Error: " + (data?.error || error.message));
-    } else {
-        setManagerInviteMessage(`Invite sent to ${data.manager.email}! Check spam if they don't see it.`);
-        setManagerFormData({ first_name: '', last_name: '', email: '' });
-    }
-}
 
 // --- HELPER FUNCTIONS ---
 function formatTo12Hour(milTime) {
@@ -72,6 +53,27 @@ export default function ManagerDashboard({ userProfile }) {
         time_input: '',
         hours_count: ''
     });
+
+    const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+    const [managerFormData, setManagerFormData] = useState({ first_name: '', last_name: '', email: '' });
+    const [managerInviteMessage, setManagerInviteMessage] = useState('');
+
+    async function handleInviteManager(e) {
+        e.preventDefault();
+        const { data, error } = await supabase.functions.invoke('invite-manager', {
+            body: {
+                first_name: managerFormData.first_name,
+                last_name: managerFormData.last_name,
+                email: managerFormData.email
+            }
+        });
+        if (error || data?.error) {
+            setManagerInviteMessage("Error: " + (data?.error || error.message));
+        } else {
+            setManagerInviteMessage(`Invite sent to ${data.manager.email}! Check spam if they don't see it.`);
+            setManagerFormData({ first_name: '', last_name: '', email: '' });
+        }
+    }
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -636,7 +638,7 @@ export default function ManagerDashboard({ userProfile }) {
             <footer className="max-w-6xl mx-auto mt-12 pt-4 border-t border-gray-900 text-center">
                 <p className="text-xs text-gray-700">Powered by <span className="text-gray-600 font-bold">Leading Zero LLC</span></p>
             </footer>
-            
+
             {isManagerModalOpen && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
                     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
