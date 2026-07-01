@@ -33,7 +33,7 @@ export default function Login() {
     } else {
       setMessage('Check your email for a password reset link. Check spam if you don\'t see it!');
     }
-    setLoading(false);
+    setLoading(false); 
   }
 
   return (
@@ -42,14 +42,15 @@ export default function Login() {
 
         {/* Rebranded Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-black text-white tracking-tight">Time Tracker Portal</h1>
+          <img src="/LZ_Icon.png" alt="Leading Zero" className="w-16 h-16 mx-auto mb-3" />
+          <h1 className="text-2xl font-black text-white tracking-tight">Service Time</h1>
           <p className="text-gray-400 text-sm mt-1">
             {isFirstTime ? "Enter your email to receive a link to reset your password." : "Enter your credentials to access your dashboard."}
           </p>
         </div>
 
         {message && (
-          <div className="mb-4 p-3 bg-gray-950 border border-gray-800 text-sm text-center text-blue-400 rounded">
+          <div className="mb-4 p-3 bg-gray-950 border border-gray-800 text-sm text-center text-sky-400 rounded">
             {message}
           </div>
         )}
@@ -63,7 +64,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
             />
           </div>
 
@@ -75,7 +76,7 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
               />
             </div>
           )}
@@ -83,7 +84,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors mt-4"
+            className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-800 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors mt-4"
           >
             {loading ? 'Processing...' : (isFirstTime ? 'Send Password Reset Link' : 'Sign In')}
           </button>

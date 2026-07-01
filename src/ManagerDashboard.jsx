@@ -4,6 +4,27 @@ import Login from './Login';
 import { jsPDF } from 'jspdf';
 import { letterLogo, coltSignature } from './assets';
 
+const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+const [managerFormData, setManagerFormData] = useState({ first_name: '', last_name: '', email: '' });
+const [managerInviteMessage, setManagerInviteMessage] = useState('');
+
+async function handleInviteManager(e) {
+    e.preventDefault();
+    const { data, error } = await supabase.functions.invoke('invite-manager', {
+        body: {
+            first_name: managerFormData.first_name,
+            last_name: managerFormData.last_name,
+            email: managerFormData.email
+        }
+    });
+    if (error || data?.error) {
+        setManagerInviteMessage("Error: " + (data?.error || error.message));
+    } else {
+        setManagerInviteMessage(`Invite sent to ${data.manager.email}! Check spam if they don't see it.`);
+        setManagerFormData({ first_name: '', last_name: '', email: '' });
+    }
+}
+
 // --- HELPER FUNCTIONS ---
 function formatTo12Hour(milTime) {
     if (!milTime || milTime.length !== 4) return milTime;
@@ -22,7 +43,7 @@ function draftWorkerEmail(worker) {
 }
 
 // --- MAIN COMPONENT ---
-export default function ManagerDashboard() {
+export default function ManagerDashboard({ userProfile }) {
     // State
     const [session, setSession] = useState(null);
     const [workers, setWorkers] = useState([]);
@@ -316,6 +337,7 @@ export default function ManagerDashboard() {
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-white">SERVICE TIME</h1>
                     <p className="text-gray-400 text-sm">Manager Portal</p>
+                    <p className="text-gray-400 text-sm">Welcome back, {userProfile?.first_name}</p>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -323,7 +345,7 @@ export default function ManagerDashboard() {
                         <select
                             value={selectedWorkerId || ''}
                             onChange={(e) => setSelectedWorkerId(e.target.value)}
-                            className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white font-bold focus:outline-none focus:border-blue-500"
+                            className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white font-bold focus:outline-none focus:border-sky-500"
                         >
                             {workers.map(w => (
                                 <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>
@@ -333,9 +355,15 @@ export default function ManagerDashboard() {
 
                     <button
                         onClick={() => setIsWorkerModalOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-blue-900/40 transition-all active:scale-95 text-sm"
+                        className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-sky-900/40 transition-all active:scale-95 text-sm"
                     >
                         + Add Worker
+                    </button>
+                    <button
+                        onClick={() => setIsManagerModalOpen(true)}
+                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-all text-sm"
+                    >
+                        + Invite Manager
                     </button>
                     <button
                         onClick={() => supabase.auth.signOut()}
@@ -357,10 +385,10 @@ export default function ManagerDashboard() {
                                 <div className="space-y-2 mt-4">
                                     <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
                                         <span className="text-gray-400">Verified Progress</span>
-                                        <span className="text-blue-400">{totalVerified.toFixed(1)} / {activeWorker.target_hours} hrs</span>
+                                        <span className="text-sky-400">{totalVerified.toFixed(1)} / {activeWorker.target_hours} hrs</span>
                                     </div>
                                     <div className="w-full bg-gray-950 rounded-full h-3 border border-gray-800 overflow-hidden">
-                                        <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                                        <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
                                     </div>
                                     <div className="flex justify-between text-xs text-gray-500 pt-1">
                                         <span>Unverified Logged: {(totalLogged - totalVerified).toFixed(1)} hrs</span>
@@ -380,16 +408,16 @@ export default function ManagerDashboard() {
                                 <form onSubmit={handleAddLog} className="space-y-4">
                                     <div>
                                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date</label>
-                                        <input required type="date" value={logFormData.work_date} onChange={(e) => setLogFormData({ ...logFormData, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer [color-scheme:dark]" />
+                                        <input required type="date" value={logFormData.work_date} onChange={(e) => setLogFormData({ ...logFormData, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500 cursor-pointer [color-scheme:dark]" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Time Started</label>
-                                            <input required type="time" value={logFormData.time_input} onChange={(e) => setLogFormData({ ...logFormData, time_input: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm cursor-pointer focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                                            <input required type="time" value={logFormData.time_input} onChange={(e) => setLogFormData({ ...logFormData, time_input: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm cursor-pointer focus:outline-none focus:border-sky-500 [color-scheme:dark]" />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Hours Count</label>
-                                            <input required type="number" step="0.25" placeholder="2.5" value={logFormData.hours_count} onChange={(e) => setLogFormData({ ...logFormData, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                                            <input required type="number" step="0.25" placeholder="2.5" value={logFormData.hours_count} onChange={(e) => setLogFormData({ ...logFormData, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500" />
                                         </div>
                                     </div>
 
@@ -402,7 +430,7 @@ export default function ManagerDashboard() {
                                             placeholder="County Food Bank"
                                             value={logFormData.location}
                                             onChange={(e) => setLogFormData({ ...logFormData, location: e.target.value })}
-                                            className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                                            className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500"
                                         />
                                         <datalist id="location-suggestions">
                                             {uniqueLocations.map(loc => <option key={loc} value={loc} />)}
@@ -418,14 +446,14 @@ export default function ManagerDashboard() {
                                             placeholder="Sorted goods..."
                                             value={logFormData.description}
                                             onChange={(e) => setLogFormData({ ...logFormData, description: e.target.value })}
-                                            className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                                            className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500"
                                         />
                                         <datalist id="description-suggestions">
                                             {uniqueDescriptions.map(desc => <option key={desc} value={desc} />)}
                                         </datalist>
                                     </div>
 
-                                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-colors mt-2">
+                                    <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-colors mt-2">
                                         Submit Log Entry
                                     </button>
                                 </form>
@@ -467,7 +495,7 @@ export default function ManagerDashboard() {
                                                         <td className="py-4 pl-2 text-right whitespace-nowrap flex items-center justify-end gap-3">
                                                             <button
                                                                 onClick={() => toggleStatus(log)}
-                                                                className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors shadow-sm ${log.is_reported ? 'text-blue-400 bg-blue-950/50 border-blue-900 hover:bg-blue-900/50' :
+                                                                className={`text-xs font-bold px-2 py-0.5 rounded border transition-colors shadow-sm ${log.is_reported ? 'text-sky-400 bg-sky-950/50 border-sky-900 hover:bg-sky-900/50' :
                                                                     log.is_verified ? 'text-green-400 bg-green-950/50 border-green-900 hover:bg-green-900/50' :
                                                                         'text-yellow-500 bg-yellow-950/50 border-yellow-900 hover:bg-yellow-900/50'
                                                                     }`}
@@ -479,7 +507,7 @@ export default function ManagerDashboard() {
                                                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                     <button
                                                                         onClick={() => setEditingLog(log)}
-                                                                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                                                                        className="text-sky-400 hover:text-sky-300 transition-colors"
                                                                     >
                                                                         ✎
                                                                     </button>
@@ -514,10 +542,6 @@ export default function ManagerDashboard() {
                 )}
             </main>
 
-            <footer className="mt-12 text-center border-t border-gray-800 pt-6">
-                <p className="text-gray-500 text-xs font-bold tracking-widest uppercase">Powered by <span className="text-blue-500">Leading Zero LLC</span></p>
-            </footer>
-
             {/* Edit Modal */}
             {isWorkerModalOpen && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -527,47 +551,47 @@ export default function ManagerDashboard() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">First Name</label>
-                                    <input required type="text" value={workerFormData.first_name} onChange={(e) => setWorkerFormData({ ...workerFormData, first_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+                                    <input required type="text" value={workerFormData.first_name} onChange={(e) => setWorkerFormData({ ...workerFormData, first_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Last Name</label>
-                                    <input required type="text" value={workerFormData.last_name} onChange={(e) => setWorkerFormData({ ...workerFormData, last_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+                                    <input required type="text" value={workerFormData.last_name} onChange={(e) => setWorkerFormData({ ...workerFormData, last_name: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500" />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
-                                <input required type="email" value={workerFormData.email} onChange={(e) => setWorkerFormData({ ...workerFormData, email: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+                                <input required type="email" value={workerFormData.email} onChange={(e) => setWorkerFormData({ ...workerFormData, email: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Case Number</label>
-                                <input required type="text" value={workerFormData.case_number} onChange={(e) => setWorkerFormData({ ...workerFormData, case_number: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+                                <input required type="text" value={workerFormData.case_number} onChange={(e) => setWorkerFormData({ ...workerFormData, case_number: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-sky-500" />
                             </div>
                             <div>
-    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Judge</label>
-    <input
-        type="text"
-        value={workerFormData.judge_name}
-        onChange={(e) => setWorkerFormData({ ...workerFormData, judge_name: e.target.value })}
-        className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-    />
-</div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Judge</label>
+                                <input
+                                    type="text"
+                                    value={workerFormData.judge_name}
+                                    onChange={(e) => setWorkerFormData({ ...workerFormData, judge_name: e.target.value })}
+                                    className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                                />
+                            </div>
 
-<div>
-    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Court Email</label>
-    <input
-        type="email"
-        value={workerFormData.court_email}
-        onChange={(e) => setWorkerFormData({ ...workerFormData, court_email: e.target.value })}
-        className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-    />
-</div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Court Email</label>
+                                <input
+                                    type="email"
+                                    value={workerFormData.court_email}
+                                    onChange={(e) => setWorkerFormData({ ...workerFormData, court_email: e.target.value })}
+                                    className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                                />
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Target Hours</label>
-                                <input required type="number" step="0.5" value={workerFormData.target_hours} onChange={(e) => setWorkerFormData({ ...workerFormData, target_hours: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+                                <input required type="number" step="0.5" value={workerFormData.target_hours} onChange={(e) => setWorkerFormData({ ...workerFormData, target_hours: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500" />
                             </div>
                             <div className="flex justify-end gap-3 mt-8">
                                 <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
-                                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors">Save Worker</button>
+                                <button type="submit" className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-6 rounded shadow-lg transition-colors">Save Worker</button>
                             </div>
                         </form>
                     </div>
@@ -596,14 +620,70 @@ export default function ManagerDashboard() {
                                 setEditingLog(null);
                             }
                         }} className="space-y-4">
-                            <input type="date" value={editingLog.work_date} onChange={(e) => setEditingLog({ ...editingLog, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
-                            <input type="text" value={editingLog.location} onChange={(e) => setEditingLog({ ...editingLog, location: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
-                            <input type="text" value={editingLog.description} onChange={(e) => setEditingLog({ ...editingLog, description: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
-                            <input type="number" step="0.25" value={editingLog.hours_count} onChange={(e) => setEditingLog({ ...editingLog, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
+                            <input type="date" value={editingLog.work_date} onChange={(e) => setEditingLog({ ...editingLog, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
+                            <input type="text" value={editingLog.location} onChange={(e) => setEditingLog({ ...editingLog, location: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
+                            <input type="text" value={editingLog.description} onChange={(e) => setEditingLog({ ...editingLog, description: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
+                            <input type="number" step="0.25" value={editingLog.hours_count} onChange={(e) => setEditingLog({ ...editingLog, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
 
                             <div className="flex justify-end gap-3 mt-8">
                                 <button type="button" onClick={() => setEditingLog(null)} className="text-gray-400 hover:text-white transition-colors">Cancel</button>
-                                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded transition-colors">Save Changes</button>
+                                <button type="submit" className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-6 rounded transition-colors">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            <footer className="max-w-6xl mx-auto mt-12 pt-4 border-t border-gray-900 text-center">
+                <p className="text-xs text-gray-700">Powered by <span className="text-gray-600 font-bold">Leading Zero LLC</span></p>
+            </footer>
+            
+            {isManagerModalOpen && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <h2 className="text-xl font-black text-white mb-4">Invite a Manager</h2>
+
+                        {managerInviteMessage && (
+                            <div className="mb-4 p-3 bg-gray-950 border border-gray-800 text-sm text-center text-sky-400 rounded">
+                                {managerInviteMessage}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleInviteManager} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">First Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={managerFormData.first_name}
+                                        onChange={(e) => setManagerFormData({ ...managerFormData, first_name: e.target.value })}
+                                        className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Last Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={managerFormData.last_name}
+                                        onChange={(e) => setManagerFormData({ ...managerFormData, last_name: e.target.value })}
+                                        className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
+                                <input
+                                    type="email"
+                                    required
+                                    value={managerFormData.email}
+                                    onChange={(e) => setManagerFormData({ ...managerFormData, email: e.target.value })}
+                                    className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 mt-2">
+                                <button type="button" onClick={() => setIsManagerModalOpen(false)} className="text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                <button type="submit" className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-6 rounded transition-colors">Send Invite</button>
                             </div>
                         </form>
                     </div>

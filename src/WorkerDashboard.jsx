@@ -24,7 +24,7 @@ function WorkerLogAccordionItem({ log, setEditingLog, supabase, setLogs, logs })
                 <div className="flex items-center gap-4 flex-1">
                     <span className="text-gray-500 font-mono w-24 text-left">{log.work_date}</span>
                     <span className="font-bold text-white w-16 text-left">{Number(log.hours_count).toFixed(1)} hrs</span>
-                    <span className={`text-xs px-2 py-0.5 rounded border ${log.is_reported ? 'text-blue-400 border-blue-900' : log.is_verified ? 'text-green-400 border-green-900' : 'text-yellow-500 border-yellow-900'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded border ${log.is_reported ? 'text-sky-400 border-sky-900' : log.is_verified ? 'text-green-400 border-green-900' : 'text-yellow-500 border-yellow-900'}`}>
                         {log.is_reported ? 'Reported' : log.is_verified ? 'Verified' : 'Pending'}
                     </span>
                 </div>
@@ -41,7 +41,7 @@ function WorkerLogAccordionItem({ log, setEditingLog, supabase, setLogs, logs })
 
                     {!log.is_verified && !log.is_reported && (
                         <div className="flex gap-4">
-                            <button onClick={() => setEditingLog(log)} className="text-blue-400 hover:text-blue-300 text-xs font-bold px-2">Edit</button>
+                            <button onClick={() => setEditingLog(log)} className="text-sky-400 hover:text-sky-300 text-xs font-bold px-2">Edit</button>
                             <button onClick={async () => {
                                 if (window.confirm("Delete this entry?")) {
                                     const { error } = await supabase.from('hours_logs').delete().eq('id', log.id);
@@ -159,10 +159,10 @@ export default function WorkerDashboard({ workerData, onLogout }) {
                         <div className="space-y-2 mt-4">
                             <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
                                 <span className="text-gray-400">Verified Progress</span>
-                                <span className="text-blue-400">{totalVerified.toFixed(1)} / {workerData.target_hours} hrs</span>
+                                <span className="text-sky-400">{totalVerified.toFixed(1)} / {workerData.target_hours} hrs</span>
                             </div>
                             <div className="w-full bg-gray-950 rounded-full h-3 border border-gray-800 overflow-hidden">
-                                <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                                <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
                             </div>
                             <div className="flex justify-between text-xs text-gray-500 pt-1">
                                 <span>Pending Approval: {(totalLogged - totalVerified).toFixed(1)} hrs</span>
@@ -176,16 +176,16 @@ export default function WorkerDashboard({ workerData, onLogout }) {
                         <form onSubmit={handleAddLog} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date</label>
-                                <input required type="date" value={logFormData.work_date} onChange={(e) => setLogFormData({ ...logFormData, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer [color-scheme:dark]" />
+                                <input required type="date" value={logFormData.work_date} onChange={(e) => setLogFormData({ ...logFormData, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500 cursor-pointer [color-scheme:dark]" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Time Started</label>
-                                    <input required type="time" value={logFormData.time_input} onChange={(e) => setLogFormData({ ...logFormData, time_input: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm cursor-pointer focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                                    <input required type="time" value={logFormData.time_input} onChange={(e) => setLogFormData({ ...logFormData, time_input: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm cursor-pointer focus:outline-none focus:border-sky-500 [color-scheme:dark]" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Hours Count</label>
-                                    <input required type="number" step="0.25" placeholder="2.5" value={logFormData.hours_count} onChange={(e) => setLogFormData({ ...logFormData, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                                    <input required type="number" step="0.25" placeholder="2.5" value={logFormData.hours_count} onChange={(e) => setLogFormData({ ...logFormData, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500" />
                                 </div>
                             </div>
 
@@ -198,7 +198,7 @@ export default function WorkerDashboard({ workerData, onLogout }) {
                                     placeholder="County Food Bank"
                                     value={logFormData.location}
                                     onChange={(e) => setLogFormData({ ...logFormData, location: e.target.value })}
-                                    className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                                    className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500"
                                 />
                                 <datalist id="location-suggestions">
                                     {uniqueLocations.map(loc => <option key={loc} value={loc} />)}
@@ -214,14 +214,14 @@ export default function WorkerDashboard({ workerData, onLogout }) {
                                     placeholder="Sorted goods..."
                                     value={logFormData.description}
                                     onChange={(e) => setLogFormData({ ...logFormData, description: e.target.value })}
-                                    className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                                    className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white text-sm focus:outline-none focus:border-sky-500"
                                 />
                                 <datalist id="description-suggestions">
                                     {uniqueDescriptions.map(desc => <option key={desc} value={desc} />)}
                                 </datalist>
                             </div>
 
-                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-colors mt-2">
+                            <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-colors mt-2">
                                 Submit Log Entry
                             </button>
                         </form>
@@ -256,10 +256,6 @@ export default function WorkerDashboard({ workerData, onLogout }) {
                 </div>
             </main>
 
-            <footer className="mt-12 text-center border-t border-gray-800 pt-6">
-                <p className="text-gray-500 text-xs font-bold tracking-widest uppercase">Powered by <span className="text-blue-500">Leading Zero LLC</span></p>
-            </footer>
-
             {/* Edit Modal */}
             {editingLog && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -283,19 +279,22 @@ export default function WorkerDashboard({ workerData, onLogout }) {
                                 setEditingLog(null);
                             }
                         }} className="space-y-4">
-                            <input type="date" value={editingLog.work_date} onChange={(e) => setEditingLog({ ...editingLog, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
-                            <input type="text" value={editingLog.location} onChange={(e) => setEditingLog({ ...editingLog, location: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
-                            <input type="text" value={editingLog.description} onChange={(e) => setEditingLog({ ...editingLog, description: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
-                            <input type="number" step="0.25" value={editingLog.hours_count} onChange={(e) => setEditingLog({ ...editingLog, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-blue-500" />
+                            <input type="date" value={editingLog.work_date} onChange={(e) => setEditingLog({ ...editingLog, work_date: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
+                            <input type="text" value={editingLog.location} onChange={(e) => setEditingLog({ ...editingLog, location: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
+                            <input type="text" value={editingLog.description} onChange={(e) => setEditingLog({ ...editingLog, description: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
+                            <input type="number" step="0.25" value={editingLog.hours_count} onChange={(e) => setEditingLog({ ...editingLog, hours_count: e.target.value })} className="w-full bg-gray-950 border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-sky-500" />
 
                             <div className="flex justify-end gap-3 mt-8">
                                 <button type="button" onClick={() => setEditingLog(null)} className="text-gray-400 hover:text-white transition-colors">Cancel</button>
-                                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded transition-colors">Save Changes</button>
+                                <button type="submit" className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-6 rounded transition-colors">Save Changes</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
+            <footer className="max-w-6xl mx-auto mt-12 pt-4 border-t border-gray-900 text-center">
+                <p className="text-xs text-gray-700">Powered by <span className="text-gray-600 font-bold">Leading Zero LLC</span></p>
+            </footer>
         </div>
     );
 }

@@ -72,12 +72,13 @@ export default function App() {
   
   // Route based on role
   if (userProfile.role === 'manager') {
-    return <ManagerDashboard />;
+    return <ManagerDashboard userProfile={userProfile} />;
   }
   
   if (userProfile.role === 'worker') {
     return <WorkerDashboard workerData={userProfile} onLogout={() => supabase.auth.signOut()} />;
   }
+
 
   // Fallback for unexpected roles
   return <div className="text-white p-10">Role not assigned. Please contact support.</div>;

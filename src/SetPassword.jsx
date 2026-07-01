@@ -51,7 +51,7 @@ export default function SetPassword() {
           <p className="text-gray-400 text-sm">Your password has been saved. You can now sign in normally anytime.</p>
           <button
             onClick={() => window.location.replace('/')}
-            className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors"
+            className="mt-6 w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors"
           >
             Go to Dashboard
           </button>
@@ -83,7 +83,7 @@ export default function SetPassword() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
             />
           </div>
 
@@ -94,14 +94,14 @@ export default function SetPassword() {
               required
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded px-3 py-2 text-white focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors mt-4"
+            className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-800 text-white font-bold py-2 px-4 rounded shadow-lg transition-colors mt-4"
           >
             {loading ? 'Saving...' : 'Set Password'}
           </button>
