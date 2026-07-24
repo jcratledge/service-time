@@ -88,41 +88,41 @@ export default function ManagerDashboard({ userProfile }) {
         return () => subscription.unsubscribe();
     }, []);
 
-    useEffect(() => {
-        if (!session) {
-            setLoading(false);
-            return;
+useEffect(() => {
+    if (!session) {
+        setLoading(false);
+        return;
+    }
+
+    async function fetchInitialData() {
+        const { data: managerData } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', session.user.email)
+            .eq('role', 'manager')
+            .single();
+
+        let currentManagerId = null;
+
+        if (managerData) {
+            currentManagerId = managerData.id;
+            setActiveManagerId(currentManagerId);
         }
 
-        async function fetchInitialData() {
-            const { data: managerData } = await supabase
-                .from('users')
-                .select('id')
-                .eq('email', session.user.email)
-                .eq('role', 'manager')
-                .single();
+        const { data: workerData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('role', 'worker');
 
-            let currentManagerId = null;
-
-            if (managerData) {
-                currentManagerId = managerData.id;
-                setActiveManagerId(currentManagerId);
-            }
-
-            const { data: workerData } = await supabase
-                .from('users')
-                .select('*')
-                .eq('role', 'worker');
-
-            if (workerData) {
-                setWorkers(workerData);
-                if (workerData.length > 0) setSelectedWorkerId(workerData[0].id);
-            }
+        if (workerData) {
+            setWorkers(workerData);
+            if (workerData.length > 0) setSelectedWorkerId(workerData[0].id);
         }
+
         setLoading(false);
     }
 
-        fetchInitialData();
+    fetchInitialData();
 }, [session]);
 
 // Hoisted fetchLogs so other functions can call it
